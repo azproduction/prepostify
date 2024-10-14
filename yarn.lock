@@ -1230,6 +1230,7 @@ __metadata:
     "@types/node": "npm:20.16.11"
     prettier: "npm:^3.3.3"
     sharp: "npm:^0.33.5"
+    smartcrop-sharp: "npm:^2.0.8"
     ts-node: "npm:^10.9.2"
     tsx: "npm:^4.19.1"
     typescript: "npm:^5.6.3"
@@ -1397,6 +1398,24 @@ __metadata:
   version: 4.2.0
   resolution: "smart-buffer@npm:4.2.0"
   checksum: 10c0/a16775323e1404dd43fabafe7460be13a471e021637bc7889468eb45ce6a6b207261f454e4e530a19500cc962c4cc5348583520843b363f4193cee5c00e1e539
+  languageName: node
+  linkType: hard
+
+"smartcrop-sharp@npm:^2.0.8":
+  version: 2.0.8
+  resolution: "smartcrop-sharp@npm:2.0.8"
+  dependencies:
+    smartcrop: "npm:^2.0.5"
+  peerDependencies:
+    sharp: ^0.32.5
+  checksum: 10c0/6b62448a72656eb0653e18df898fbfca94115a3058652b71951b5704e56214d5d80776d6530d3006aecd287bfe024b74bc5541e57a134ed6bae90492e91ef6ae
+  languageName: node
+  linkType: hard
+
+"smartcrop@npm:^2.0.5":
+  version: 2.0.5
+  resolution: "smartcrop@npm:2.0.5"
+  checksum: 10c0/6a3f2a5553ae20a442815e84bc1bdc63feb4ef54f274c95b20ef6cc567433a30feeb751bc875caa28ffb5839768d70e0768f6800ae703dfe0584c3a4af0bb853
   languageName: node
   linkType: hard
 
