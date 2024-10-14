@@ -1,0 +1,25 @@
+{
+  "name": "prepostify",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@types/node": "20.16.11",
+    "sharp": "^0.33.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.1"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "tabWidth": 4
+  },
+  "engines": {
+    "node": ">= 20"
+  },
+  "packageManager": "yarn@4.5.0"
+}
