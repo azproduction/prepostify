@@ -8,64 +8,9 @@ const [, , ...fileNames] = process.argv;
 
 assert(fileNames.length > 0, 'fileName is required');
 
-function resizeToLongestSize(longestSide: number = 2048) {
-    return async function (content: Buffer) {
-        let { width = 0, height = 0 } = await sharp(content).metadata();
-
-        assert(width !== 0, 'width is 0');
-        assert(height !== 0, 'width is 0');
-
-        return sharp(content).withMetadata().resize({
-            withoutEnlargement: true,
-            width: width > height ? longestSide : undefined,
-            height: height >= width ? longestSide : undefined,
-        }).toBuffer();
-    }
-}
-
-function squareupWithGaussianBlur(longestSide: number = 2048) {
-    return async function (content: Buffer) {
-        let { width = 0, height = 0 } = await sharp(content).metadata();
-
-        assert(width !== 0, 'width is 0');
-        assert(height !== 0, 'width is 0');
-
-        const resizedContent = await resizeToLongestSize(longestSide)(content);
-
-        ({width = 0, height = 0} = await sharp(resizedContent).metadata());
-        const biggestDimension = Math.max(width, height);
-
-        const imageLayer = await sharp(resizedContent)
-            .withMetadata()
-            .extend({
-                background: { r: 0, g: 0, b: 0, alpha: 0 },
-                bottom: Math.floor((biggestDimension - height) / 2),
-                top: Math.ceil((biggestDimension - height) / 2),
-                left: Math.floor((biggestDimension - width) / 2),
-                right: Math.ceil((biggestDimension - width) / 2),
-            })
-            .toFormat('png')
-            .toBuffer();
-
-        return await sharp(resizedContent)
-            .withMetadata()
-            .resize(biggestDimension, biggestDimension, {
-                fit: 'cover',
-            })
-            .blur(24)
-            .composite([
-                {
-                    input: imageLayer,
-                    gravity: 'centre',
-                },
-            ])
-            .jpeg({
-                quality: 95,
-                force: false,
-            })
-            .toBuffer();
-    }
-}
+const aspectRatio = 4 / 5;
+const targetHeight = 2048;
+const targetWidth = Math.round(targetHeight * aspectRatio);
 
 function withSuffix(fileName: string, suffix: string): string {
     const ext = path.extname(fileName);
@@ -76,35 +21,73 @@ function withSuffix(fileName: string, suffix: string): string {
     );
 }
 
-const longestSide = 2048;
+async function processImage(content: Buffer): Promise<Buffer> {
+    let { width = 0, height = 0 } = await sharp(content).metadata();
+
+    assert(width !== 0, 'width is 0');
+    assert(height !== 0, 'height is 0');
+
+    if (height >= width) {
+        // Vertical: resize so height = 2048, no upscaling; if already small, just copy
+        if (Math.max(width, height) <= targetHeight) {
+            return content;
+        }
+        return sharp(content).withMetadata().resize({
+            withoutEnlargement: true,
+            height: targetHeight,
+        }).toBuffer();
+    }
+
+    // Horizontal: add blurred top/bottom padding to make 4:5
+    // Resize so width is at most targetWidth
+    const resizedContent = await sharp(content).withMetadata().resize({
+        withoutEnlargement: true,
+        width: targetWidth,
+    }).toBuffer();
+
+    const resizedMeta = await sharp(resizedContent).metadata();
+    const resizedWidth = resizedMeta.width!;
+    const resizedHeight = resizedMeta.height!;
+
+    const canvasHeight = Math.round(resizedWidth / aspectRatio);
+    const padTop = Math.ceil((canvasHeight - resizedHeight) / 2);
+
+    // Create blurred version stretched to fill the 4:5 area
+    const blurredBg = await sharp(resizedContent)
+        .withMetadata()
+        .resize(resizedWidth, canvasHeight, {
+            fit: 'cover',
+        })
+        .blur(24)
+        .toBuffer();
+
+    // Composite sharp image centered on blurred background
+    return await sharp(blurredBg)
+        .composite([{
+            input: resizedContent,
+            left: 0,
+            top: padTop,
+        }])
+        .jpeg({
+            quality: 95,
+            force: false,
+        })
+        .toBuffer();
+}
 
 await Promise.all(
     fileNames.map(async (fileName) => {
-        const outputs: [string, (content: Buffer) => Promise<Buffer>][] = [
-            [
-                withSuffix(fileName, `${longestSide}`),
-                resizeToLongestSize(longestSide)
-            ],
-            [
-                withSuffix(fileName, `${longestSide}-s`),
-                squareupWithGaussianBlur(longestSide)
-            ]
-        ];
+        const outputFile = withSuffix(fileName, `${targetHeight}-p`);
+
+        if (existsSync(outputFile)) {
+            console.log(`⚠️️ ${outputFile}`);
+            return;
+        }
 
         const content = await fs.readFile(fileName);
+        const result = await processImage(content);
 
-        await Promise.all(
-            outputs.map(async ([outputFile, processor]) => {
-                if (existsSync(outputFile)) {
-                    console.log(`⚠️️ ${outputFile}`);
-                    return;
-                }
-
-                const result = await processor(content);
-
-                await fs.writeFile(outputFile, result);
-                console.log(`☑️ ${outputFile}`);
-            })
-        );
+        await fs.writeFile(outputFile, result);
+        console.log(`☑️ ${outputFile}`);
     })
 )
